@@ -54,36 +54,36 @@ data-export-engine/
 
 ## 3. Architecture
 #### 3.1 High-level flow
-A client creates an export job via POST /exports.
+* A client creates an export job via POST /exports.
 
-The API stores a lightweight job description in an in-memory jobs dict.
+* The API stores a lightweight job description in an in-memory jobs dict.
 
-The client immediately calls GET /exports/{export_id}/download.
+* The client immediately calls GET /exports/{export_id}/download.
 
 ***The API:***
 
-Builds a SELECT query based on requested columns.
+* Builds a SELECT query based on requested columns.
 
-Uses get_db_connection() to connect to PostgreSQL.
+* Uses get_db_connection() to connect to PostgreSQL.
 
-Uses a server-side cursor (cursor(name=..., cursor_factory=RealDictCursor)) to stream rows.
+* Uses a server-side cursor (cursor(name=..., cursor_factory=RealDictCursor)) to stream rows.
 
-Wraps the cursor with a format-specific exporter (CSV/JSON/XML/Parquet).
+* Wraps the cursor with a format-specific exporter (CSV/JSON/XML/Parquet).
 
-Optionally wraps the stream with a gzip compressor for text formats.
+* Optionally wraps the stream with a gzip compressor for text formats.
 
-Returns a StreamingResponse to the client.
+* Returns a StreamingResponse to the client.
 
 #### 3.2 Database
 PostgreSQL container seeded with 10M rows into a records table, with columns:
 
-id (int)
+* id (int)
 
-name (text)
+* name (text)
 
-value (numeric / decimal)
+* value (numeric / decimal)
 
-metadata (JSONB with nested structure)
+* metadata (JSONB with nested structure)
 
 Connection string is read from DATABASE_URL env var, e.g.:
 
@@ -96,78 +96,78 @@ Each exporter takes a DB cursor (yielding dict rows) and a list of ColumnMapping
 
 ***CSVExporter***
 
-Writes a header row (targets).
+* Writes a header row (targets).
 
 For each row:
 
-Reads row[col.source]
+* Reads row[col.source]
 
-Normalizes values (e.g. datetimes to ISO, others to string)
+* Normalizes values (e.g. datetimes to ISO, others to string)
 
-Writes via csv.writer into a StringIO
+* Writes via csv.writer into a StringIO
 
-Yields encoded bytes chunk-by-chunk.
+* Yields encoded bytes chunk-by-chunk.
 
 ***JSONExporter***
 
-Streams a single JSON array:
+* Streams a single JSON array:
 
-Yields initial b"["
+* Yields initial b"["
 
 For each row:
 
-Builds a dict {col.target: normalized_value}
+* Builds a dict {col.target: normalized_value}
 
-Uses orjson.dumps() to serialize.
+* Uses orjson.dumps() to serialize.
 
-Prepends commas between items.
+* Prepends commas between items.
 
-Yields final b"]".
+* Yields final b"]".
 
-Normalizes Decimal to float and datetimes to ISO strings.
+* Normalizes Decimal to float and datetimes to ISO strings.
 
 ***XMLExporter***
 
-Streams well-formed XML:
+* Streams well-formed XML:
 
-Yields XML declaration and <records> root.
+* Yields XML declaration and <records> root.
 
 For each row:
 
-Writes <record> and child tags per column using col.target as tag name.
+* Writes <record> and child tags per column using col.target as tag name.
 
-Escapes text with xml.sax.saxutils.escape.
+* Escapes text with xml.sax.saxutils.escape.
 
-Yields closing </records>.
+* Yields closing </records>.
 
 ***ParquetExporter***
 
-Batches rows into a Python dict ({column_name: [values...]}).
+* Batches rows into a Python dict ({column_name: [values...]}).
 
-Uses pyarrow.Table.from_pydict and pyarrow.parquet.ParquetWriter to write to a temporary file under /tmp.
+* Uses pyarrow.Table.from_pydict and pyarrow.parquet.ParquetWriter to write to a temporary file under /tmp.
 
-Streams that file in 1 MB chunks.
+* Streams that file in 1 MB chunks.
 
-Deletes the temp file after streaming.
+* Deletes the temp file after streaming.
 
-Accepts an optional output_path (used by the benchmark endpoint).
+* Accepts an optional output_path (used by the benchmark endpoint).
 
 #### 3.4 Gzip compression
-For CSV/JSON/XML, if compression="gzip" is set in the export job:
+* For CSV/JSON/XML, if compression="gzip" is set in the export job:
 
-Wraps the raw stream with a gzip_stream() using zlib.compressobj configured for gzip.
+* Wraps the raw stream with a gzip_stream() using zlib.compressobj configured for gzip.
 
-Yields compressed chunks and final flush.
+* Yields compressed chunks and final flush.
 
-Adds Content-Encoding: gzip header.
+* Adds Content-Encoding: gzip header.
 
-Parquet is not gzipped (file format already supports compression internally).
+* Parquet is not gzipped (file format already supports compression internally).
 
 ## 4. Setup and Running
 #### 4.1 Requirements
-Docker + Docker Compose
+* Docker + Docker Compose
 
-Python 3.11+ (only needed if you want to run tests on host)
+* Python 3.11+ (only needed if you want to run tests on host)
 
 #### 4.2 Environment
 Create a .env file in project root (or use defaults from docker-compose.yml):
@@ -187,9 +187,9 @@ docker-compose up --build
 
 Wait until:
 
-db container is up and seeded (10M rows).
+* db container is up and seeded (10M rows).
 
-app container logs: Application startup complete and Uvicorn listening on 0.0.0.0:8080.
+* app container logs: Application startup complete and Uvicorn listening on 0.0.0.0:8080.
 
 To verify DB row count:
 
@@ -200,50 +200,50 @@ docker-compose exec db psql -U user -d exports_db -c "SELECT COUNT(*) FROM recor
 ## 5. API Documentation
 FastAPI auto-docs are available at:
 
-Swagger UI: http://localhost:8080/docs
+* Swagger UI: http://localhost:8080/docs
 
-OpenAPI JSON: http://localhost:8080/openapi.json
+* OpenAPI JSON: http://localhost:8080/openapi.json
 
 #### 5.1 Models (conceptual)
 ExportFormat: enum of "csv", "json", "xml", "parquet".
 
 ColumnMapping:
 
-source (str): DB column name.
+* source (str): DB column name.
 
-target (str): Output field/tag name.
+* target (str): Output field/tag name.
 
 CreateExportRequest:
 
-format: ExportFormat
+* format: ExportFormat
 
-columns: list[ColumnMapping]
+* columns: list[ColumnMapping]
 
-compression: optional "gzip" or None
+* compression: optional "gzip" or None
 
 ExportJob:
 
-export_id: UUID
+* export_id: UUID
 
-status: "pending" or "completed"
+* status: "pending" or "completed"
 
-format, columns, compression as above.
+* format, columns, compression as above.
 
 BenchmarkResult:
 
-format: ExportFormat
+* format: ExportFormat
 
-duration_seconds: float
+* duration_seconds: float
 
-file_size_bytes: int
+* file_size_bytes: int
 
-peak_memory_mb: float
+* peak_memory_mb: float
 
 BenchmarkResponse:
 
-datasetRowCount: int
+* datasetRowCount: int
 
-results: list[BenchmarkResult]
+* results: list[BenchmarkResult]
 
 ## 5.2 Endpoints
 #### 5.2.1 Create Export Job
@@ -263,9 +263,9 @@ Request body (application/json):
   "compression": "gzip"
 }
 ```
-format: "csv" | "json" | "xml" | "parquet"
+* format: "csv" | "json" | "xml" | "parquet"
 
-compression (optional): "gzip" for CSV/JSON/XML; ignored for Parquet.
+* compression (optional): "gzip" for CSV/JSON/XML; ignored for Parquet.
 
 Response 201 Created:
 
@@ -288,27 +288,27 @@ GET /exports/{export_id}/download
 
 Path parameter:
 
-export_id: UUID returned by POST /exports.
+* export_id: UUID returned by POST /exports.
 
 Behavior:
 
-Streams the export in the requested format.
+* Streams the export in the requested format.
 
 Headers:
 
-Content-Type:
+* Content-Type:
 
-text/csv for CSV
+** text/csv for CSV
 
-application/json for JSON
+** application/json for JSON
 
-application/xml for XML
+** application/xml for XML
 
-application/octet-stream for Parquet
+** application/octet-stream for Parquet
+ 
+* Content-Disposition: attachment; filename="export.<ext>"
 
-Content-Disposition: attachment; filename="export.<ext>"
-
-Content-Encoding: gzip if compression="gzip" for CSV/JSON/XML.
+* Content-Encoding: gzip if compression="gzip" for CSV/JSON/XML.
 
 Examples (PowerShell):
 
@@ -405,18 +405,18 @@ pytest -q
 ```
 tests/test_exports_unit.py:
 
-test_create_export_job_csv
+* test_create_export_job_csv
 
-test_create_export_job_invalid_format
+* test_create_export_job_invalid_format
 
-test_download_not_found
+* test_download_not_found
 
 #### 6.2 Integration tests
 Integration tests in tests/test_exports_integration.py hit the real DB and streaming logic.
 
 You can:
 
-Run them on host by setting DATABASE_URL to your Docker Postgres:
+* Run them on host by setting DATABASE_URL to your Docker Postgres:
 
 ```
 $env:DATABASE_URL = "postgresql://user:password@localhost:5432/exports_db"
@@ -426,30 +426,30 @@ Or mark/skip them depending on environment (e.g., via a pytest marker).
 
 Tests cover:
 
-CSV header + rows content.
+* CSV header + rows content.
 
 JSON gzip correctness and structure.
 
-XML structure.
+* XML structure.
 
 Parquet returns binary data.
 
 ## 7. Notes and Limitations
-The job store is in-memory (a simple dict) for demo purposes. In production, use Redis or another persistent store.
+* The job store is in-memory (a simple dict) for demo purposes. In production, use Redis or another persistent store.
 
-/exports/{export_id}/download assumes the job is executed on demand; there is no background queue.
+* /exports/{export_id}/download assumes the job is executed on demand; there is no background queue.
 
-Parquet exporter uses all fields as strings for simplicity; schema can be refined to use typed columns (int, float, struct) if needed.
+* Parquet exporter uses all fields as strings for simplicity; schema can be refined to use typed columns (int, float, struct) if needed.
 
-Gzip compression is applied manually for streaming responses using zlib and the Content-Encoding: gzip header.
+* Gzip compression is applied manually for streaming responses using zlib and the Content-Encoding: gzip header.
 
 ## 8. Future improvements
-Replace in-memory jobs store with Redis / database.
+* Replace in-memory jobs store with Redis / database.
 
-Add authentication/authorization.
+* Add authentication/authorization.
 
-Improve Parquet schema to preserve numeric and nested types.
+* Improve Parquet schema to preserve numeric and nested types.
 
-Add pagination/filters on the dataset.
+* Add pagination/filters on the dataset.
 
-Add Prometheus metrics for per-format export performance.
+* Add Prometheus metrics for per-format export performance.
