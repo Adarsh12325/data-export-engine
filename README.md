@@ -298,13 +298,13 @@ Headers:
 
 * Content-Type:
 
-** text/csv for CSV
+- text/csv for CSV
 
-** application/json for JSON
+- application/json for JSON
 
-** application/xml for XML
+- application/xml for XML
 
-** application/octet-stream for Parquet
+- application/octet-stream for Parquet
  
 * Content-Disposition: attachment; filename="export.<ext>"
 
