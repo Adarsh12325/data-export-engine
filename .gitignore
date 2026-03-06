@@ -1,0 +1,22 @@
+@"
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+.env.local
+*.sqlite3
+*.log
+.idea/
+.vscode/
+venv/
+.env/
+__pycache__/
+*.coverage
+htmlcov/
+export*.csv
+export*.json
+export*.xml
+export*.parquet
+"@ | Set-Content .gitignore
