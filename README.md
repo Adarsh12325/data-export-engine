@@ -4,7 +4,7 @@ A FastAPI-based **data export service** that streams a large PostgreSQL dataset 
 
 ---
 
-## 1. Features
+## 1. Features 
 
 - Export data from PostgreSQL in:
   - **CSV** (streamed, header row, proper quoting)
