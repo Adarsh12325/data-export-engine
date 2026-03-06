@@ -50,17 +50,17 @@ data-export-engine/
 │  ├─ conftest.py           # Adds project root to sys.path
 │  ├─ test_exports_unit.py
 │  ├─ test_exports_integration.py
+```
 
-
-3. Architecture
-3.1 High-level flow
+## 3. Architecture
+#### 3.1 High-level flow
 A client creates an export job via POST /exports.
 
 The API stores a lightweight job description in an in-memory jobs dict.
 
 The client immediately calls GET /exports/{export_id}/download.
 
-The API:
+***The API:***
 
 Builds a SELECT query based on requested columns.
 
@@ -74,7 +74,7 @@ Optionally wraps the stream with a gzip compressor for text formats.
 
 Returns a StreamingResponse to the client.
 
-3.2 Database
+#### 3.2 Database
 PostgreSQL container seeded with 10M rows into a records table, with columns:
 
 id (int)
@@ -87,12 +87,14 @@ metadata (JSONB with nested structure)
 
 Connection string is read from DATABASE_URL env var, e.g.:
 
-text
+```
 DATABASE_URL=postgresql://user:password@db:5432/exports_db
-3.3 Exporters
+```
+
+#### 3.3 Exporters
 Each exporter takes a DB cursor (yielding dict rows) and a list of ColumnMapping objects (source DB column, target output field):
 
-CSVExporter
+***CSVExporter***
 
 Writes a header row (targets).
 
@@ -106,7 +108,7 @@ Writes via csv.writer into a StringIO
 
 Yields encoded bytes chunk-by-chunk.
 
-JSONExporter
+***JSONExporter***
 
 Streams a single JSON array:
 
@@ -124,7 +126,7 @@ Yields final b"]".
 
 Normalizes Decimal to float and datetimes to ISO strings.
 
-XMLExporter
+***XMLExporter***
 
 Streams well-formed XML:
 
@@ -138,7 +140,7 @@ Escapes text with xml.sax.saxutils.escape.
 
 Yields closing </records>.
 
-ParquetExporter
+***ParquetExporter***
 
 Batches rows into a Python dict ({column_name: [values...]}).
 
@@ -150,7 +152,7 @@ Deletes the temp file after streaming.
 
 Accepts an optional output_path (used by the benchmark endpoint).
 
-3.4 Gzip compression
+#### 3.4 Gzip compression
 For CSV/JSON/XML, if compression="gzip" is set in the export job:
 
 Wraps the raw stream with a gzip_stream() using zlib.compressobj configured for gzip.
@@ -161,24 +163,28 @@ Adds Content-Encoding: gzip header.
 
 Parquet is not gzipped (file format already supports compression internally).
 
-4. Setup and Running
-4.1 Requirements
+## 4. Setup and Running
+#### 4.1 Requirements
 Docker + Docker Compose
 
 Python 3.11+ (only needed if you want to run tests on host)
 
-4.2 Environment
+#### 4.2 Environment
 Create a .env file in project root (or use defaults from docker-compose.yml):
 
-text
+```
 DATABASE_URL=postgresql://user:password@db:5432/exports_db
 PORT=8080
-4.3 Run with Docker Compose
+````
+
+#### 4.3 Run with Docker Compose
 From project root:
 
-bash
+```
 docker-compose down
 docker-compose up --build
+```
+
 Wait until:
 
 db container is up and seeded (10M rows).
@@ -187,16 +193,18 @@ app container logs: Application startup complete and Uvicorn listening on 0.0.0.
 
 To verify DB row count:
 
-bash
+```
 docker-compose exec db psql -U user -d exports_db -c "SELECT COUNT(*) FROM records;"
-5. API Documentation
+```
+
+## 5. API Documentation
 FastAPI auto-docs are available at:
 
 Swagger UI: http://localhost:8080/docs
 
 OpenAPI JSON: http://localhost:8080/openapi.json
 
-5.1 Models (conceptual)
+#### 5.1 Models (conceptual)
 ExportFormat: enum of "csv", "json", "xml", "parquet".
 
 ColumnMapping:
@@ -237,13 +245,13 @@ datasetRowCount: int
 
 results: list[BenchmarkResult]
 
-5.2 Endpoints
-5.2.1 Create Export Job
+## 5.2 Endpoints
+#### 5.2.1 Create Export Job
 POST /exports
 
 Request body (application/json):
 
-json
+```
 {
   "format": "csv",
   "columns": [
@@ -254,13 +262,14 @@ json
   ],
   "compression": "gzip"
 }
+```
 format: "csv" | "json" | "xml" | "parquet"
 
 compression (optional): "gzip" for CSV/JSON/XML; ignored for Parquet.
 
 Response 201 Created:
 
-json
+```
 {
   "export_id": "d203c98a-b243-491b-ab30-3bf24483ab85",
   "status": "pending",
@@ -273,7 +282,8 @@ json
   ],
   "compression": "gzip"
 }
-5.2.2 Download Export
+```
+#### 5.2.2 Download Export
 GET /exports/{export_id}/download
 
 Path parameter:
@@ -304,7 +314,7 @@ Examples (PowerShell):
 
 Create job:
 
-powershell
+```
 $body = @{
     format = "csv"
     columns = @(
@@ -323,9 +333,11 @@ $job = Invoke-RestMethod -Uri "http://localhost:8080/exports" `
 $exportId = $job.export_id
 
 curl "http://localhost:8080/exports/$exportId/download" -o export.csv
+```
+
 For JSON + gzip:
 
-powershell
+```
 $body = @{
     format = "json"
     columns = @(
@@ -345,12 +357,13 @@ $job = Invoke-RestMethod -Uri "http://localhost:8080/exports" `
 $exportId = $job.export_id
 
 curl "http://localhost:8080/exports/$exportId/download" -o export.json.gz
-5.2.3 Benchmark Exports
+```
+#### 5.2.3 Benchmark Exports
 GET /exports/benchmark
 
 Response (application/json):
 
-json
+```
 {
   "datasetRowCount": 10000000,
   "results": [
@@ -380,14 +393,16 @@ json
     }
   ]
 }
+```
 Values above are illustrative; actual numbers are measured at runtime.
 
-6. Testing
-6.1 Unit tests
+## 6. Testing
+#### 6.1 Unit tests
 Run on host:
 
-bash
+```
 pytest -q
+```
 tests/test_exports_unit.py:
 
 test_create_export_job_csv
@@ -396,16 +411,17 @@ test_create_export_job_invalid_format
 
 test_download_not_found
 
-6.2 Integration tests
+#### 6.2 Integration tests
 Integration tests in tests/test_exports_integration.py hit the real DB and streaming logic.
 
 You can:
 
 Run them on host by setting DATABASE_URL to your Docker Postgres:
 
-powershell
+```
 $env:DATABASE_URL = "postgresql://user:password@localhost:5432/exports_db"
 pytest -q
+```
 Or mark/skip them depending on environment (e.g., via a pytest marker).
 
 Tests cover:
@@ -418,7 +434,7 @@ XML structure.
 
 Parquet returns binary data.
 
-7. Notes and Limitations
+## 7. Notes and Limitations
 The job store is in-memory (a simple dict) for demo purposes. In production, use Redis or another persistent store.
 
 /exports/{export_id}/download assumes the job is executed on demand; there is no background queue.
@@ -427,7 +443,7 @@ Parquet exporter uses all fields as strings for simplicity; schema can be refine
 
 Gzip compression is applied manually for streaming responses using zlib and the Content-Encoding: gzip header.
 
-8. Future improvements
+## 8. Future improvements
 Replace in-memory jobs store with Redis / database.
 
 Add authentication/authorization.
